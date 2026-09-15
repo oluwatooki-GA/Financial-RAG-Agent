@@ -1,3 +1,4 @@
+import _bootstrap  # noqa: F401
 from financial_rag_agent.ingestion.pipeline import ingest_filing
 
 NVIDIA_CIK = "0001045810"

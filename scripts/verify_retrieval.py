@@ -1,3 +1,4 @@
+import _bootstrap  # noqa: F401
 from financial_rag_agent.retrieval.vector_retriever import baseline_vector_search
 
 QUESTIONS = [
