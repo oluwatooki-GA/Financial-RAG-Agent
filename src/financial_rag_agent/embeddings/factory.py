@@ -15,6 +15,10 @@ def get_embeddings_client() -> Embeddings:
             model=settings.embedding_model,
             base_url=settings.ollama_base_url,
         )
+    elif settings.embedding_provider == "sentence-transformers":
+        from langchain_huggingface import HuggingFaceEmbeddings
+
+        client = HuggingFaceEmbeddings(model_name=settings.embedding_model)
     else:
         raise ValueError(f"Unsupported embedding provider: {settings.embedding_provider!r}")
 
