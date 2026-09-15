@@ -6,7 +6,7 @@ from financial_rag_agent.db import Chunk, Company, Filing, get_session
 from financial_rag_agent.ingestion.chunker import SECFilingChunker
 from financial_rag_agent.ingestion.edgar_client import FilingRef, fetch_filing_html, get_latest_10k
 from financial_rag_agent.ingestion.parser import parse_filing_html
-from financial_rag_agent.retrieval.vector_store import get_vector_store
+from financial_rag_agent.retrieval.vector_store import get_vector_store, vector_row_id
 
 
 def _get_or_create_company(session, filing_ref: FilingRef) -> Company:
@@ -111,7 +111,7 @@ def ingest_filing(cik: str) -> Filing:
                 }
                 for c in chunks
             ],
-            ids=[str(c.id) for c in chunks],
+            ids=[vector_row_id(vector_store.collection_name, c.id) for c in chunks],
         )
 
         filing.ingestion_status = "complete"
