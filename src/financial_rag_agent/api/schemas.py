@@ -13,6 +13,13 @@ class IngestResponse(BaseModel):
     ingestion_status: str
 
 
+class CitationSentenceResponse(BaseModel):
+    text: str
+    char_start: int
+    char_end: int
+    score: float
+
+
 class RetrievedChunkResponse(BaseModel):
     chunk_id: UUID
     score: float
@@ -20,6 +27,7 @@ class RetrievedChunkResponse(BaseModel):
     item_label: str | None
     item_heading: str | None
     filing_accession_number: str
+    citation_sentences: list[CitationSentenceResponse]
 
 
 class QueryResponse(BaseModel):
