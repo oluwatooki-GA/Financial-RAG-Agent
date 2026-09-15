@@ -59,37 +59,44 @@ def ingest_filing(cik: str) -> Filing:
         company = _get_or_create_company(session, filing_ref)
         filing = _get_or_create_filing(session, company, filing_ref, str(raw_path))
 
-        if filing.ingestion_status == "complete":
-            return filing
+        chunks: list[Chunk] = session.exec(
+            select(Chunk).where(Chunk.filing_id == filing.id).order_by(Chunk.chunk_index)
+        ).all()
 
-        filing.ingestion_status = "parsing"
-        session.add(filing)
-        session.commit()
+        if not chunks:
+            filing.ingestion_status = "parsing"
+            session.add(filing)
+            session.commit()
 
-        blocks = parse_filing_html(raw_path)
-        drafts = SECFilingChunker().chunk(blocks)
+            blocks = parse_filing_html(raw_path)
+            drafts = SECFilingChunker().chunk(blocks)
 
-        chunks: list[Chunk] = []
-        for draft in drafts:
-            chunk = Chunk(
-                filing_id=filing.id,
-                chunk_index=draft.chunk_index,
-                part_label=draft.part_label,
-                item_label=draft.item_label,
-                item_heading=draft.item_heading,
-                section_path=draft.section_path,
-                text=draft.text,
-                token_count=len(draft.text) // 4,
-            )
-            chunk.embedding_id = str(chunk.id)
-            chunks.append(chunk)
+            for draft in drafts:
+                chunk = Chunk(
+                    filing_id=filing.id,
+                    chunk_index=draft.chunk_index,
+                    part_label=draft.part_label,
+                    item_label=draft.item_label,
+                    item_heading=draft.item_heading,
+                    section_path=draft.section_path,
+                    text=draft.text,
+                    token_count=len(draft.text) // 4,
+                )
+                chunk.embedding_id = str(chunk.id)
+                chunks.append(chunk)
 
+            session.add_all(chunks)
+            session.commit()
+            for c in chunks:
+                session.refresh(c)
+
+        # Always (re-)embed into whichever collection EMBEDDING_PROVIDER currently
+        # points at. Each provider/model gets its own pgvector collection, so this
+        # is a safe, idempotent upsert even if the filing was already ingested
+        # under a different provider.
         filing.ingestion_status = "embedding"
         session.add(filing)
-        session.add_all(chunks)
         session.commit()
-        for c in chunks:
-            session.refresh(c)
 
         vector_store = get_vector_store()
         vector_store.add_texts(
