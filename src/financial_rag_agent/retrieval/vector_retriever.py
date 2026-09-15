@@ -1,9 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from sqlmodel import select
 
 from financial_rag_agent.db import Chunk, Filing, get_session
+from financial_rag_agent.retrieval.citations import CitationSentence, extract_citation_sentences
 from financial_rag_agent.retrieval.vector_store import get_vector_store
 
 
@@ -15,9 +16,12 @@ class RetrievedChunk:
     item_label: str | None
     item_heading: str | None
     filing_accession_number: str
+    citation_sentences: list[CitationSentence] = field(default_factory=list)
 
 
-def baseline_vector_search(query: str, k: int = 5, filing_id: UUID | None = None) -> list[RetrievedChunk]:
+def baseline_vector_search(
+    query: str, k: int = 5, filing_id: UUID | None = None, with_citations: bool = True
+) -> list[RetrievedChunk]:
     vector_store = get_vector_store()
 
     search_filter = {"filing_id": str(filing_id)} if filing_id else None
@@ -37,6 +41,7 @@ def baseline_vector_search(query: str, k: int = 5, filing_id: UUID | None = None
     for doc, score in results:
         chunk_id = UUID(doc.metadata["chunk_id"])
         chunk, filing = by_id[chunk_id]
+        citation_sentences = extract_citation_sentences(query, chunk.text) if with_citations else []
         retrieved.append(
             RetrievedChunk(
                 chunk_id=chunk_id,
@@ -45,6 +50,7 @@ def baseline_vector_search(query: str, k: int = 5, filing_id: UUID | None = None
                 item_label=chunk.item_label,
                 item_heading=chunk.item_heading,
                 filing_accession_number=filing.accession_number,
+                citation_sentences=citation_sentences,
             )
         )
 
