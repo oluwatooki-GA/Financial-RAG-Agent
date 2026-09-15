@@ -14,6 +14,8 @@ RAW_DATA_DIR = Path("data/raw")
 class FilingRef:
     cik: str
     company_name: str
+    ticker: str | None
+    sic: str | None
     accession_number: str
     form_type: str
     filing_date: str
@@ -43,9 +45,12 @@ def get_latest_10k(cik: str) -> FilingRef:
                 accession_no_dashes=accession_no_dashes,
                 document=primary_document,
             )
+            tickers = data.get("tickers") or []
             return FilingRef(
                 cik=cik,
                 company_name=data["name"],
+                ticker=tickers[0] if tickers else None,
+                sic=data.get("sic"),
                 accession_number=accession_number,
                 form_type=form,
                 filing_date=recent["filingDate"][i],
