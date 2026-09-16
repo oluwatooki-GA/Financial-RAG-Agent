@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     embedding_dimension: int = 768
     ollama_base_url: str = "http://localhost:11434"
 
+    llm_provider: str = "ollama"
+    llm_model: str = "llama3.2:3b"
+
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
     chunk_target_tokens: int = 900
     chunk_overlap_tokens: int = 150
 
