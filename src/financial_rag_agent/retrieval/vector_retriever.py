@@ -19,16 +19,28 @@ class RetrievedChunk:
     citation_sentences: list[CitationSentence] = field(default_factory=list)
 
 
-def baseline_vector_search(
-    query: str, k: int = 5, filing_id: UUID | None = None, with_citations: bool = True
-) -> list[RetrievedChunk]:
+def raw_vector_search(query: str, k: int = 20, filing_id: UUID | None = None) -> list[tuple[UUID, float]]:
+    """Real vector similarity search, returning (chunk_id, score) pairs with
+    the vector store's actual similarity_search_with_score (never a
+    hardcoded score). Used both by the baseline retriever directly and by
+    hybrid retrieval as one of the two ranked lists fed into RRF."""
     vector_store = get_vector_store()
-
     search_filter = {"filing_id": str(filing_id)} if filing_id else None
     results = vector_store.similarity_search_with_score(query, k=k, filter=search_filter)
+    return [(UUID(doc.metadata["chunk_id"]), score) for doc, score in results]
 
-    chunk_ids = [UUID(doc.metadata["chunk_id"]) for doc, _score in results]
 
+def attach_details(
+    query: str, scored_chunk_ids: list[tuple[UUID, float]], with_citations: bool = True
+) -> list[RetrievedChunk]:
+    """Joins (chunk_id, score) pairs back to the relational Chunk/Filing rows
+    and optionally computes citation sentences. Shared by every retrieval
+    configuration (baseline, hybrid, hybrid+reranked) so there is one path
+    from a ranked chunk_id list to a RetrievedChunk, not several."""
+    if not scored_chunk_ids:
+        return []
+
+    chunk_ids = [chunk_id for chunk_id, _score in scored_chunk_ids]
     with get_session() as session:
         rows = session.exec(
             select(Chunk, Filing)
@@ -38,8 +50,9 @@ def baseline_vector_search(
         by_id = {chunk.id: (chunk, filing) for chunk, filing in rows}
 
     retrieved: list[RetrievedChunk] = []
-    for doc, score in results:
-        chunk_id = UUID(doc.metadata["chunk_id"])
+    for chunk_id, score in scored_chunk_ids:
+        if chunk_id not in by_id:
+            continue
         chunk, filing = by_id[chunk_id]
         citation_sentences = extract_citation_sentences(query, chunk.text) if with_citations else []
         retrieved.append(
@@ -55,3 +68,10 @@ def baseline_vector_search(
         )
 
     return retrieved
+
+
+def baseline_vector_search(
+    query: str, k: int = 5, filing_id: UUID | None = None, with_citations: bool = True
+) -> list[RetrievedChunk]:
+    scored_chunk_ids = raw_vector_search(query, k=k, filing_id=filing_id)
+    return attach_details(query, scored_chunk_ids, with_citations=with_citations)
