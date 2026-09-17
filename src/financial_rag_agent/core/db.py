@@ -1,7 +1,8 @@
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
-from financial_rag_agent.config import get_settings
+import financial_rag_agent.core.models  # noqa: F401  (registers tables with SQLModel.metadata)
+from financial_rag_agent.core.config import get_settings
 
 _settings = get_settings()
 engine = create_engine(_settings.database_url)
