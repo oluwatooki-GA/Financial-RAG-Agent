@@ -1,3 +1,4 @@
+from dataclasses import replace
 from functools import lru_cache
 
 from sentence_transformers import CrossEncoder
@@ -25,15 +26,8 @@ def rerank(query: str, candidates: list[RetrievedChunk], top_k: int) -> list[Ret
     scores = reranker.predict(pairs)
 
     reordered = sorted(zip(candidates, scores), key=lambda pair: pair[1], reverse=True)
-    return [
-        RetrievedChunk(
-            chunk_id=c.chunk_id,
-            score=float(score),
-            text=c.text,
-            item_label=c.item_label,
-            item_heading=c.item_heading,
-            filing_accession_number=c.filing_accession_number,
-            citation_sentences=c.citation_sentences,
-        )
-        for c, score in reordered[:top_k]
-    ]
+    # dataclasses.replace copies every field from the original candidate and
+    # only overrides score, so this can never silently drop a field that
+    # gets added to RetrievedChunk later (as manually listing each field
+    # here once did — it caused the multimodal fields to go missing).
+    return [replace(c, score=float(score)) for c, score in reordered[:top_k]]
