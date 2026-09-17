@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from financial_rag_agent.config import get_settings
+from financial_rag_agent.core.config import get_settings
 from financial_rag_agent.ingestion.parser import Block
 
 PART_RE = re.compile(r"^PART\s+[IVX]+\b", re.IGNORECASE)

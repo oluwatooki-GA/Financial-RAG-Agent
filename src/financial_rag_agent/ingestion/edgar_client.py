@@ -3,7 +3,7 @@ from pathlib import Path
 
 import requests
 
-from financial_rag_agent.config import get_settings
+from financial_rag_agent.core.config import get_settings
 
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:0>10}.json"
 ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik_int}/{accession_no_dashes}/{document}"

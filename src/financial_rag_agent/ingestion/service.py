@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from sqlmodel import select
 
-from financial_rag_agent.db import Chunk, Company, Filing, get_session
+from financial_rag_agent.core import Chunk, Company, Filing, get_session
 from financial_rag_agent.ingestion.chunker import SECFilingChunker
 from financial_rag_agent.ingestion.edgar_client import FilingRef, fetch_filing_html, get_latest_10k
 from financial_rag_agent.ingestion.parser import parse_filing_html
