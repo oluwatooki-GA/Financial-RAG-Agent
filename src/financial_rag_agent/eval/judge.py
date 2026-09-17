@@ -14,6 +14,9 @@ Passage from an SEC filing:
 Does this passage contain information that would help answer the question? Reply with exactly one word: YES or NO."""
 
 
+JUDGE_PASSAGE_CHARS = 1200  # tradeoff: shorter = faster CPU inference, longer = judge sees more of the chunk
+
+
 @lru_cache(maxsize=4096)
 def judge_relevance(query: str, chunk_text: str) -> bool:
     """LLM-as-judge binary relevance label for one (query, chunk) pair, via
@@ -21,7 +24,7 @@ def judge_relevance(query: str, chunk_text: str) -> bool:
     chunk surfacing across multiple retrieval configurations in one eval run
     is only judged once."""
     llm = get_llm_client()
-    prompt = _JUDGE_PROMPT.format(query=query, passage=chunk_text[:2000])
+    prompt = _JUDGE_PROMPT.format(query=query, passage=chunk_text[:JUDGE_PASSAGE_CHARS])
     response = llm.invoke(prompt)
     answer = str(response.content).strip().upper()
     return answer.startswith("YES")
