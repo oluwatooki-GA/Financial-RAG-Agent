@@ -3,8 +3,9 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from financial_rag_agent.api.dependencies import get_ingest_service, get_query_service
-from financial_rag_agent.api.main import app
+from financial_rag_agent.ingestion.router import get_ingest_service
+from financial_rag_agent.main import app
+from financial_rag_agent.retrieval.router import get_query_service
 from financial_rag_agent.retrieval.vector_retriever import RetrievedChunk
 
 
@@ -25,7 +26,7 @@ def test_ingest_rejects_malformed_cik_before_calling_service(client):
     calls = []
     app.dependency_overrides[get_ingest_service] = lambda: calls.append
 
-    resp = client.post("/filings/ingest", json={"cik": "not-a-cik"})
+    resp = client.post("/api/v1/filings/ingest", json={"cik": "not-a-cik"})
 
     assert resp.status_code == 400
     assert "Invalid CIK" in resp.json()["detail"]
@@ -38,7 +39,7 @@ def test_ingest_maps_value_error_from_service_to_400(client):
 
     app.dependency_overrides[get_ingest_service] = lambda: fake_ingest
 
-    resp = client.post("/filings/ingest", json={"cik": "1045810"})
+    resp = client.post("/api/v1/filings/ingest", json={"cik": "1045810"})
 
     assert resp.status_code == 400
     assert "No 10-K filing found" in resp.json()["detail"]
@@ -60,7 +61,7 @@ def test_query_uses_injected_service_not_real_retrieval(client):
         lambda q, k, modality=None: [fake_chunk]
     )
 
-    resp = client.get("/query", params={"q": "anything", "k": 1})
+    resp = client.get("/api/v1/query", params={"q": "anything", "k": 1})
 
     assert resp.status_code == 200
     body = resp.json()
@@ -74,7 +75,7 @@ def test_runtime_error_maps_to_500_with_detail(client):
 
     app.dependency_overrides[get_query_service] = lambda: fake_query
 
-    resp = client.get("/query", params={"q": "anything", "k": 1})
+    resp = client.get("/api/v1/query", params={"q": "anything", "k": 1})
 
     assert resp.status_code == 500
     assert "embedding_dimension" in resp.json()["detail"]

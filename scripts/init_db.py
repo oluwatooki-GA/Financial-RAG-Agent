@@ -1,5 +1,5 @@
 import _bootstrap  # noqa: F401
-from financial_rag_agent.db import init_db
+from financial_rag_agent.core import init_db
 
 if __name__ == "__main__":
     init_db()
