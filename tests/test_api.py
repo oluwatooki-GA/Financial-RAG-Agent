@@ -3,9 +3,9 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from financial_rag_agent.ingestion.router import get_ingest_service
+from financial_rag_agent.api.routers.ingestion import get_ingest_service
+from financial_rag_agent.api.routers.retrieval import get_query_service
 from financial_rag_agent.main import app
-from financial_rag_agent.retrieval.router import get_query_service
 from financial_rag_agent.retrieval.vector_retriever import RetrievedChunk
 
 

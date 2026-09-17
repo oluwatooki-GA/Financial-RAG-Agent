@@ -2,7 +2,7 @@ import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from financial_rag_agent.api import api_router
+from financial_rag_agent.api.api import api_router
 
 app = FastAPI(title="Financial RAG Agent")
 app.include_router(api_router)
