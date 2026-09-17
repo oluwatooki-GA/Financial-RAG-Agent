@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from financial_rag_agent.llm.factory import get_llm_client
+from financial_rag_agent.services.llm.factory import get_llm_client
 
 _JUDGE_PROMPT = """You are judging retrieval relevance for a financial research system.
 
