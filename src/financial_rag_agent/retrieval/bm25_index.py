@@ -19,6 +19,7 @@ class _CachedIndex:
     fingerprint: tuple
     bm25: BM25Okapi
     chunk_ids: list[UUID]
+    modalities: list[str]
 
 
 _cache: dict[UUID | None, _CachedIndex] = {}
@@ -43,9 +44,10 @@ def _build_index(filing_id: UUID | None, fingerprint: tuple) -> _CachedIndex:
         chunks = session.exec(stmt).all()
 
     chunk_ids = [c.id for c in chunks]
+    modalities = [c.modality for c in chunks]
     tokenized = [_tokenize(c.text) for c in chunks]
     bm25 = BM25Okapi(tokenized) if tokenized else None
-    return _CachedIndex(fingerprint=fingerprint, bm25=bm25, chunk_ids=chunk_ids)
+    return _CachedIndex(fingerprint=fingerprint, bm25=bm25, chunk_ids=chunk_ids, modalities=modalities)
 
 
 def get_bm25_index(filing_id: UUID | None = None) -> _CachedIndex:
@@ -57,14 +59,38 @@ def get_bm25_index(filing_id: UUID | None = None) -> _CachedIndex:
     return cached
 
 
-def bm25_search(query: str, k: int = 20, filing_id: UUID | None = None) -> list[tuple[UUID, float]]:
+def _rank_and_filter(
+    chunk_ids: list[UUID],
+    scores,
+    modalities: list[str],
+    k: int,
+    modality: str | None,
+) -> list[tuple[UUID, float]]:
+    """Sorts by score, drops zero-score (no lexical overlap) and
+    non-matching-modality results, then truncates to k. Pulled out of
+    bm25_search so the filtering logic is testable without a DB session."""
+    ranked = sorted(zip(chunk_ids, scores, modalities), key=lambda triple: triple[1], reverse=True)
+    filtered = [
+        (chunk_id, float(score))
+        for chunk_id, score, chunk_modality in ranked
+        if score > 0 and (modality is None or chunk_modality == modality)
+    ]
+    return filtered[:k]
+
+
+def bm25_search(
+    query: str, k: int = 20, filing_id: UUID | None = None, modality: str | None = None
+) -> list[tuple[UUID, float]]:
     """Real BM25 lexical search over the relational chunk table (not a
     vector-store convenience method). Returns (chunk_id, score) pairs,
-    highest score first, dropping zero-score (no lexical overlap) results."""
+    highest score first, dropping zero-score (no lexical overlap) results.
+    If modality is given, results are filtered to that modality before
+    truncating to k (the corpus is small enough that post-filtering the
+    full-corpus ranking is simpler and fast enough, vs. maintaining a
+    separate BM25 index per modality)."""
     index = get_bm25_index(filing_id)
     if index.bm25 is None:
         return []
 
     scores = index.bm25.get_scores(_tokenize(query))
-    ranked = sorted(zip(index.chunk_ids, scores), key=lambda pair: pair[1], reverse=True)
-    return [(chunk_id, float(score)) for chunk_id, score in ranked[:k] if score > 0]
+    return _rank_and_filter(index.chunk_ids, scores, index.modalities, k, modality)
