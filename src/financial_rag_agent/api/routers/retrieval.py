@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from financial_rag_agent.api.dependencies import get_query_service
 from financial_rag_agent.api.schemas import CitationSentenceResponse, QueryResponse, RetrievedChunkResponse
-from financial_rag_agent.retrieval.vector_retriever import baseline_vector_search
 
 router = APIRouter(tags=["retrieval"])
 
@@ -11,8 +11,9 @@ def query(
     q: str = Query(..., min_length=1),
     k: int = Query(default=5, ge=1, le=20),
     modality: str | None = Query(default=None, pattern="^(text|table)$"),
+    query_service=Depends(get_query_service),
 ) -> QueryResponse:
-    results = baseline_vector_search(q, k=k, modality=modality)
+    results = query_service(q, k=k, modality=modality)
     return QueryResponse(
         query=q,
         results=[
