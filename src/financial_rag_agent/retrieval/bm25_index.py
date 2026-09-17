@@ -5,7 +5,7 @@ from uuid import UUID
 from rank_bm25 import BM25Okapi
 from sqlmodel import select
 
-from financial_rag_agent.db import Chunk, get_session
+from financial_rag_agent.core import Chunk, get_session
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 from syntok.segmenter import process as syntok_process
 
-from financial_rag_agent.embeddings.factory import get_embeddings_client
+from financial_rag_agent.services.embeddings.factory import get_embeddings_client
 
 
 @dataclass

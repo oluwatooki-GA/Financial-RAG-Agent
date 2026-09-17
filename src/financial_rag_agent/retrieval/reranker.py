@@ -3,7 +3,7 @@ from functools import lru_cache
 
 from sentence_transformers import CrossEncoder
 
-from financial_rag_agent.config import get_settings
+from financial_rag_agent.core.config import get_settings
 from financial_rag_agent.retrieval.vector_retriever import RetrievedChunk
 
 

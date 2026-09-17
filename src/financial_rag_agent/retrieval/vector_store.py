@@ -4,8 +4,8 @@ from functools import lru_cache
 
 from langchain_postgres import PGVector
 
-from financial_rag_agent.config import get_settings
-from financial_rag_agent.embeddings.factory import get_embeddings_client
+from financial_rag_agent.core.config import get_settings
+from financial_rag_agent.services.embeddings.factory import get_embeddings_client
 
 BASE_COLLECTION_NAME = "sec_filing_chunks"
 

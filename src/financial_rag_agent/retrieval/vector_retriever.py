@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlmodel import select
 
-from financial_rag_agent.db import Chunk, Filing, get_session
+from financial_rag_agent.core import Chunk, Filing, get_session
 from financial_rag_agent.retrieval.citations import CitationSentence, extract_citation_sentences
 from financial_rag_agent.retrieval.vector_store import get_vector_store
 
