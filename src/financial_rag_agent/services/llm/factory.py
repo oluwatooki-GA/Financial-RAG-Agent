@@ -3,7 +3,7 @@ from functools import lru_cache
 from langchain_core.language_models import BaseChatModel
 from langchain_ollama import ChatOllama
 
-from financial_rag_agent.config import get_settings
+from financial_rag_agent.core.config import get_settings
 
 
 @lru_cache
