@@ -27,6 +27,8 @@ class RetrievedChunkResponse(BaseModel):
     item_label: str | None
     item_heading: str | None
     filing_accession_number: str
+    modality: str
+    table_data: list[list[str]] | None
     citation_sentences: list[CitationSentenceResponse]
 
 
