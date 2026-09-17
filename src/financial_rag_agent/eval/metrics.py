@@ -1,36 +1,25 @@
-import math
+from ranx import Qrels, Run
+from ranx import evaluate as ranx_evaluate
 
 
-def precision_at_k(relevances: list[bool], k: int) -> float:
-    if k == 0:
-        return 0.0
-    top_k = relevances[:k]
-    return sum(top_k) / k
+def evaluate_retrieval(
+    qrels: dict[str, dict[str, int]], run: dict[str, dict[str, float]], k: int
+) -> dict[str, float]:
+    """Real Precision@K, Recall@K, MRR, and NDCG@K, computed via ranx (a
+    validated, widely used IR evaluation library) instead of hand-rolled
+    formulas.
 
-
-def recall_at_k(relevances: list[bool], k: int, total_relevant: int) -> float:
-    if total_relevant == 0:
-        return 0.0
-    top_k = relevances[:k]
-    return sum(top_k) / total_relevant
-
-
-def mrr(relevances: list[bool]) -> float:
-    for rank, is_relevant in enumerate(relevances, start=1):
-        if is_relevant:
-            return 1.0 / rank
-    return 0.0
-
-
-def _dcg_at_k(relevances: list[bool], k: int) -> float:
-    return sum(
-        (1.0 if rel else 0.0) / math.log2(rank + 1)
-        for rank, rel in enumerate(relevances[:k], start=1)
+    qrels: {query_id: {chunk_id: relevance}} (0/1 for binary relevance)
+    run:   {query_id: {chunk_id: score}} — score determines rank order
+    """
+    results = ranx_evaluate(
+        Qrels(qrels),
+        Run(run),
+        [f"precision@{k}", f"recall@{k}", "mrr", f"ndcg@{k}"],
     )
-
-
-def ndcg_at_k(relevances: list[bool], k: int) -> float:
-    dcg = _dcg_at_k(relevances, k)
-    ideal = sorted(relevances, reverse=True)
-    idcg = _dcg_at_k(ideal, k)
-    return dcg / idcg if idcg > 0 else 0.0
+    return {
+        "precision_at_k": float(results[f"precision@{k}"]),
+        "recall_at_k": float(results[f"recall@{k}"]),
+        "mrr": float(results["mrr"]),
+        "ndcg_at_k": float(results[f"ndcg@{k}"]),
+    }

@@ -2,38 +2,37 @@ import math
 
 import pytest
 
-from financial_rag_agent.eval.metrics import mrr, ndcg_at_k, precision_at_k, recall_at_k
+from financial_rag_agent.eval.metrics import evaluate_retrieval
 
-RELEVANCES = [True, False, True, False, True]
-
-
-def test_precision_at_k():
-    assert precision_at_k(RELEVANCES, 3) == pytest.approx(2 / 3)
-    assert precision_at_k(RELEVANCES, 5) == pytest.approx(3 / 5)
-
-
-def test_recall_at_k():
-    assert recall_at_k(RELEVANCES, 3, total_relevant=3) == pytest.approx(2 / 3)
-    assert recall_at_k(RELEVANCES, 5, total_relevant=3) == pytest.approx(1.0)
-    assert recall_at_k(RELEVANCES, 5, total_relevant=0) == 0.0
+# One query, 3 docs. d1 and d2 are relevant (1), d3 is not (0). The run
+# ranks them d1 (highest score) > d3 > d2 — same fixture used to
+# cross-validate this project's original hand-rolled formulas against ranx.
+QRELS = {"q1": {"d1": 1, "d2": 1, "d3": 0}}
+RUN = {"q1": {"d1": 0.9, "d3": 0.8, "d2": 0.5}}
 
 
-def test_mrr_first_relevant_rank():
-    assert mrr(RELEVANCES) == pytest.approx(1.0)
-    assert mrr([False, False, True]) == pytest.approx(1 / 3)
-    assert mrr([False, False, False]) == 0.0
+def test_precision_and_recall_at_2():
+    m = evaluate_retrieval(QRELS, RUN, k=2)
+    assert m["precision_at_k"] == pytest.approx(0.5)
+    assert m["recall_at_k"] == pytest.approx(0.5)
 
 
-def test_ndcg_matches_hand_computed_value():
-    dcg = 1 / math.log2(2) + 0 / math.log2(3) + 1 / math.log2(4)
-    idcg = 1 / math.log2(2) + 1 / math.log2(3) + 1 / math.log2(4)
+def test_mrr_first_relevant_at_rank_1():
+    m = evaluate_retrieval(QRELS, RUN, k=2)
+    assert m["mrr"] == pytest.approx(1.0)
+
+
+def test_ndcg_at_2_matches_hand_computed_value():
+    dcg = 1 / math.log2(2) + 0 / math.log2(3)
+    idcg = 1 / math.log2(2) + 1 / math.log2(3)
     expected = dcg / idcg
-    assert ndcg_at_k(RELEVANCES, 3) == pytest.approx(expected)
+    m = evaluate_retrieval(QRELS, RUN, k=2)
+    assert m["ndcg_at_k"] == pytest.approx(expected)
 
 
-def test_ndcg_perfect_ordering_is_one():
-    assert ndcg_at_k([True, True, False], 3) == pytest.approx(1.0)
-
-
-def test_ndcg_no_relevant_docs_is_zero():
-    assert ndcg_at_k([False, False, False], 3) == 0.0
+def test_perfect_ranking_gives_precision_one():
+    qrels = {"q1": {"d1": 1, "d2": 1}}
+    run = {"q1": {"d1": 0.9, "d2": 0.8}}
+    m = evaluate_retrieval(qrels, run, k=2)
+    assert m["precision_at_k"] == pytest.approx(1.0)
+    assert m["ndcg_at_k"] == pytest.approx(1.0)
