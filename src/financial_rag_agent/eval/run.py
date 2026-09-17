@@ -1,8 +1,6 @@
-from dataclasses import dataclass
-
 from financial_rag_agent.eval.dataset import EVAL_QUERIES
 from financial_rag_agent.eval.judge import judge_relevance
-from financial_rag_agent.eval.metrics import mrr, ndcg_at_k, precision_at_k, recall_at_k
+from financial_rag_agent.eval.metrics import evaluate_retrieval
 from financial_rag_agent.retrieval.hybrid_retriever import hybrid_search, hybrid_search_reranked
 from financial_rag_agent.retrieval.vector_retriever import RetrievedChunk, baseline_vector_search
 
@@ -16,58 +14,45 @@ CONFIGS = {
 }
 
 
-@dataclass
-class ConfigResult:
-    precision_at_k: float
-    recall_at_k: float
-    mrr: float
-    ndcg_at_k: float
+def run_eval() -> dict[str, dict[str, float]]:
+    """Runs every config against every eval query, judges relevance with the
+    small local LLM, and computes real Precision@K/Recall@K/MRR/NDCG via
+    ranx. Every config is scored against the same qrels per query (the union
+    of judged-relevant chunks across all three configs' pools) — an honest
+    proxy for recall, since there is no exhaustive corpus-wide relevance
+    labeling to compute it against."""
+    qrels: dict[str, dict[str, dict[str, int]]] = {name: {} for name in CONFIGS}
+    runs: dict[str, dict[str, dict[str, float]]] = {name: {} for name in CONFIGS}
 
-
-def _judge_all(query: str, results: list[RetrievedChunk]) -> dict:
-    return {r.chunk_id: judge_relevance(query, r.text) for r in results}
-
-
-def run_eval() -> dict[str, list[ConfigResult]]:
-    """Runs every config against every eval query, judging relevance with the
-    small local LLM and computing real P@K/R@K/MRR/NDCG per query. Recall is
-    computed against the union of judged-relevant chunks across all three
-    configs' candidate pools for that query (an honest proxy — there is no
-    exhaustive, corpus-wide relevance labeling to compute recall against)."""
-    per_config_results: dict[str, list[ConfigResult]] = {name: [] for name in CONFIGS}
-
-    for eval_query in EVAL_QUERIES:
+    for i, eval_query in enumerate(EVAL_QUERIES):
         query = eval_query.query
+        query_id = f"q{i}"
+
         results_by_config: dict[str, list[RetrievedChunk]] = {
             name: fn(query) for name, fn in CONFIGS.items()
         }
 
         judged: dict = {}
         for results in results_by_config.values():
-            judged.update(_judge_all(query, results))
+            for r in results:
+                if r.chunk_id not in judged:
+                    judged[r.chunk_id] = judge_relevance(query, r.text)
 
-        total_relevant = sum(1 for is_relevant in judged.values() if is_relevant)
+        shared_qrels = {str(chunk_id): int(is_relevant) for chunk_id, is_relevant in judged.items()}
 
         for name, results in results_by_config.items():
-            relevances = [judged[r.chunk_id] for r in results]
-            per_config_results[name].append(
-                ConfigResult(
-                    precision_at_k=precision_at_k(relevances, FINAL_K),
-                    recall_at_k=recall_at_k(relevances, FINAL_K, total_relevant=total_relevant),
-                    mrr=mrr(relevances),
-                    ndcg_at_k=ndcg_at_k(relevances, FINAL_K),
-                )
-            )
+            qrels[name][query_id] = shared_qrels
+            runs[name][query_id] = {str(r.chunk_id): r.score for r in results}
 
-    return per_config_results
+    return {name: evaluate_retrieval(qrels[name], runs[name], FINAL_K) for name in CONFIGS}
 
 
-def summarize(per_config_results: dict[str, list[ConfigResult]]) -> str:
+def summarize(results: dict[str, dict[str, float]]) -> str:
     lines = [
-        f"# Retrieval evaluation report",
+        "# Retrieval evaluation report",
         "",
         f"Queries: {len(EVAL_QUERIES)} | K={FINAL_K} | candidate pool={POOL_SIZE} | "
-        f"judge=Ollama local LLM (see llm/factory.py)",
+        "judge=Ollama local LLM (see llm/factory.py) | metrics computed via ranx",
         "",
         "Recall is computed against the union of judged-relevant chunks across all "
         "three configs' pools for each query (no exhaustive corpus-wide ground truth exists).",
@@ -75,12 +60,10 @@ def summarize(per_config_results: dict[str, list[ConfigResult]]) -> str:
         "| Config | Precision@K | Recall@K | MRR | NDCG@K |",
         "|---|---|---|---|---|",
     ]
-    for name, results in per_config_results.items():
-        n = len(results)
-        avg_p = sum(r.precision_at_k for r in results) / n
-        avg_r = sum(r.recall_at_k for r in results) / n
-        avg_mrr = sum(r.mrr for r in results) / n
-        avg_ndcg = sum(r.ndcg_at_k for r in results) / n
-        lines.append(f"| {name} | {avg_p:.3f} | {avg_r:.3f} | {avg_mrr:.3f} | {avg_ndcg:.3f} |")
+    for name, m in results.items():
+        lines.append(
+            f"| {name} | {m['precision_at_k']:.3f} | {m['recall_at_k']:.3f} | "
+            f"{m['mrr']:.3f} | {m['ndcg_at_k']:.3f} |"
+        )
 
     return "\n".join(lines)
