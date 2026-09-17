@@ -16,17 +16,25 @@ class RetrievedChunk:
     item_label: str | None
     item_heading: str | None
     filing_accession_number: str
+    modality: str = "text"
+    table_data: list[list[str]] | None = None
     citation_sentences: list[CitationSentence] = field(default_factory=list)
 
 
-def raw_vector_search(query: str, k: int = 20, filing_id: UUID | None = None) -> list[tuple[UUID, float]]:
+def raw_vector_search(
+    query: str, k: int = 20, filing_id: UUID | None = None, modality: str | None = None
+) -> list[tuple[UUID, float]]:
     """Real vector similarity search, returning (chunk_id, score) pairs with
     the vector store's actual similarity_search_with_score (never a
     hardcoded score). Used both by the baseline retriever directly and by
     hybrid retrieval as one of the two ranked lists fed into RRF."""
     vector_store = get_vector_store()
-    search_filter = {"filing_id": str(filing_id)} if filing_id else None
-    results = vector_store.similarity_search_with_score(query, k=k, filter=search_filter)
+    filter_clauses = {}
+    if filing_id:
+        filter_clauses["filing_id"] = str(filing_id)
+    if modality:
+        filter_clauses["modality"] = modality
+    results = vector_store.similarity_search_with_score(query, k=k, filter=filter_clauses or None)
     return [(UUID(doc.metadata["chunk_id"]), score) for doc, score in results]
 
 
@@ -63,6 +71,8 @@ def attach_details(
                 item_label=chunk.item_label,
                 item_heading=chunk.item_heading,
                 filing_accession_number=filing.accession_number,
+                modality=chunk.modality,
+                table_data=chunk.table_data,
                 citation_sentences=citation_sentences,
             )
         )
@@ -71,7 +81,11 @@ def attach_details(
 
 
 def baseline_vector_search(
-    query: str, k: int = 5, filing_id: UUID | None = None, with_citations: bool = True
+    query: str,
+    k: int = 5,
+    filing_id: UUID | None = None,
+    modality: str | None = None,
+    with_citations: bool = True,
 ) -> list[RetrievedChunk]:
-    scored_chunk_ids = raw_vector_search(query, k=k, filing_id=filing_id)
+    scored_chunk_ids = raw_vector_search(query, k=k, filing_id=filing_id, modality=modality)
     return attach_details(query, scored_chunk_ids, with_citations=with_citations)
