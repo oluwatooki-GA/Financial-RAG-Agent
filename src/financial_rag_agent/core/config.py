@@ -20,6 +20,11 @@ class Settings(BaseSettings):
 
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
+    # "baseline" | "hybrid" | "hybrid_reranked" — default is "hybrid" per real
+    # eval results (eval_report.md): hybrid beat both baseline and
+    # hybrid+reranked on every metric, so reranking is opt-in, not default.
+    retrieval_strategy: str = "hybrid"
+
     chunk_target_tokens: int = 900
     chunk_overlap_tokens: int = 150
 
