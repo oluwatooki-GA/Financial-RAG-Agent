@@ -21,10 +21,10 @@ def reciprocal_rank_fusion(ranked_lists: list[list[UUID]], rrf_k: int = DEFAULT_
 
 
 def _fused_candidate_ids(
-    query: str, filing_id: UUID | None, candidate_pool_size: int
+    query: str, filing_id: UUID | None, candidate_pool_size: int, modality: str | None = None
 ) -> list[tuple[UUID, float]]:
-    vector_results = raw_vector_search(query, k=candidate_pool_size, filing_id=filing_id)
-    bm25_results = bm25_search(query, k=candidate_pool_size, filing_id=filing_id)
+    vector_results = raw_vector_search(query, k=candidate_pool_size, filing_id=filing_id, modality=modality)
+    bm25_results = bm25_search(query, k=candidate_pool_size, filing_id=filing_id, modality=modality)
     return reciprocal_rank_fusion(
         [
             [chunk_id for chunk_id, _score in vector_results],
@@ -38,12 +38,13 @@ def hybrid_search(
     k: int = 5,
     filing_id: UUID | None = None,
     candidate_pool_size: int = 20,
+    modality: str | None = None,
     with_citations: bool = True,
 ) -> list[RetrievedChunk]:
     """Vector search + BM25, fused via reciprocal rank fusion. No reranking —
     a distinct configuration from baseline_vector_search and
     hybrid_search_reranked, not a flag that silently no-ops either."""
-    fused = _fused_candidate_ids(query, filing_id, candidate_pool_size)
+    fused = _fused_candidate_ids(query, filing_id, candidate_pool_size, modality=modality)
     return attach_details(query, fused[:k], with_citations=with_citations)
 
 
@@ -52,10 +53,11 @@ def hybrid_search_reranked(
     k: int = 5,
     filing_id: UUID | None = None,
     candidate_pool_size: int = 20,
+    modality: str | None = None,
 ) -> list[RetrievedChunk]:
     """Hybrid (vector + BM25 + RRF) candidate pool, then the cross-encoder
     reranker is actually called on that pool to produce the final top_k."""
-    fused = _fused_candidate_ids(query, filing_id, candidate_pool_size)
+    fused = _fused_candidate_ids(query, filing_id, candidate_pool_size, modality=modality)
     candidates = attach_details(query, fused, with_citations=False)
     reranked = rerank(query, candidates, top_k=k)
 
