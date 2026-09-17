@@ -80,6 +80,8 @@ def ingest_filing(cik: str) -> Filing:
                     item_heading=draft.item_heading,
                     section_path=draft.section_path,
                     text=draft.text,
+                    modality=draft.modality,
+                    table_data=draft.table_data,
                     token_count=len(draft.text) // 4,
                 )
                 chunk.embedding_id = str(chunk.id)
@@ -108,6 +110,7 @@ def ingest_filing(cik: str) -> Filing:
                     "company_id": str(company.id),
                     "item_label": c.item_label,
                     "item_heading": c.item_heading,
+                    "modality": c.modality,
                 }
                 for c in chunks
             ],
