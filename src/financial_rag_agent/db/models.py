@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
@@ -41,6 +42,8 @@ class Chunk(SQLModel, table=True):
     item_heading: Optional[str] = None
     section_path: Optional[str] = None
     text: str
+    modality: str = Field(default="text", index=True)
+    table_data: Optional[list] = Field(default=None, sa_column=Column(JSON))
     char_start: Optional[int] = None
     char_end: Optional[int] = None
     token_count: Optional[int] = None
