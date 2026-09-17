@@ -18,11 +18,41 @@ class ChunkDraft:
     item_heading: str | None
     section_path: str | None
     text: str
+    modality: str = "text"
+    table_data: list[list[str]] | None = None
 
 
 def _section_path(part_label: str | None, item_heading: str | None) -> str | None:
     parts = [p for p in (part_label, item_heading) if p]
     return " > ".join(parts) if parts else None
+
+
+def _flatten_rows(rows: list[list[str]]) -> str:
+    return "\n".join(" | ".join(row) for row in rows)
+
+
+def _group_table_rows(rows: list[list[str]], target_chars: int) -> list[list[list[str]]]:
+    """Splits a table's rows into groups that each stay near target_chars,
+    without ever breaking a row in half. A single oversized row still forms
+    its own group rather than being truncated."""
+    groups: list[list[list[str]]] = []
+    current: list[list[str]] = []
+    current_len = 0
+
+    for row in rows:
+        row_text = " | ".join(row)
+        row_len = len(row_text) + 1  # + separator newline
+        if current and current_len + row_len > target_chars:
+            groups.append(current)
+            current = []
+            current_len = 0
+        current.append(row)
+        current_len += row_len
+
+    if current:
+        groups.append(current)
+
+    return groups
 
 
 class SECFilingChunker:
@@ -32,10 +62,12 @@ class SECFilingChunker:
 
     def __init__(self, target_tokens: int | None = None, overlap_tokens: int | None = None):
         settings = get_settings()
-        target_chars = (target_tokens or settings.chunk_target_tokens) * 4
-        overlap_chars = (overlap_tokens or settings.chunk_overlap_tokens) * 4
+        resolved_target = target_tokens if target_tokens is not None else settings.chunk_target_tokens
+        resolved_overlap = overlap_tokens if overlap_tokens is not None else settings.chunk_overlap_tokens
+        self._target_chars = resolved_target * 4
+        overlap_chars = resolved_overlap * 4
         self._splitter = RecursiveCharacterTextSplitter(
-            chunk_size=target_chars,
+            chunk_size=self._target_chars,
             chunk_overlap=overlap_chars,
             separators=["\n\n", "\n", ". ", " ", ""],
         )
@@ -71,6 +103,24 @@ class SECFilingChunker:
                 chunk_index += 1
             buffer.clear()
 
+        def emit_table(block: Block) -> None:
+            nonlocal chunk_index
+            flush_buffer()
+            for group in _group_table_rows(block.table_rows or [], self._target_chars):
+                drafts.append(
+                    ChunkDraft(
+                        chunk_index=chunk_index,
+                        part_label=current_part,
+                        item_label=current_item_label,
+                        item_heading=current_item_heading,
+                        section_path=_section_path(current_part, current_item_heading),
+                        text=_flatten_rows(group),
+                        modality="table",
+                        table_data=group,
+                    )
+                )
+                chunk_index += 1
+
         for block in blocks:
             if block.type == "heading":
                 if PART_RE.match(block.text):
@@ -86,6 +136,10 @@ class SECFilingChunker:
                     current_item_label = item_match.group(1).strip()
                     current_item_heading = block.text
                     continue
+
+            if block.type == "table":
+                emit_table(block)
+                continue
 
             buffer.append(block.text)
 
