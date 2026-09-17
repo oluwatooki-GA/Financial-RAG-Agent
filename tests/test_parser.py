@@ -17,6 +17,13 @@ def test_tables_are_flattened_as_table_blocks():
     assert any("Data Center" in b.text and "47250" in b.text for b in table_blocks)
 
 
+def test_table_blocks_retain_structured_rows():
+    blocks = parse_filing_html(FIXTURE)
+    table_blocks = [b for b in blocks if b.type == "table"]
+    target = next(b for b in table_blocks if any("Data Center" in row for row in b.table_rows))
+    assert target.table_rows == [["Segment", "Revenue"], ["Data Center", "47250"]]
+
+
 def test_document_order_is_preserved():
     blocks = parse_filing_html(FIXTURE)
     types_in_order = [b.type for b in blocks]

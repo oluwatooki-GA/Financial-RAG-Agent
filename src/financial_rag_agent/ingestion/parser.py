@@ -18,6 +18,7 @@ BlockType = Literal["heading", "table", "paragraph"]
 class Block:
     type: BlockType
     text: str
+    table_rows: list[list[str]] | None = None
 
 
 def _is_leaf_text_block(tag) -> bool:
@@ -28,14 +29,14 @@ def _clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
 
 
-def _flatten_table(table_tag) -> str:
+def _extract_table_rows(table_tag) -> list[list[str]]:
     rows = []
     for tr in table_tag.find_all("tr"):
         cells = [_clean_text(c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
         cells = [c for c in cells if c]
         if cells:
-            rows.append(" | ".join(cells))
-    return "\n".join(rows)
+            rows.append(cells)
+    return rows
 
 
 def parse_filing_html(path: Path) -> list[Block]:
@@ -49,9 +50,10 @@ def parse_filing_html(path: Path) -> list[Block]:
             continue
 
         if tag.name == "table":
-            text = _flatten_table(tag)
-            if text:
-                blocks.append(Block(type="table", text=text))
+            rows = _extract_table_rows(tag)
+            if rows:
+                text = "\n".join(" | ".join(row) for row in rows)
+                blocks.append(Block(type="table", text=text, table_rows=rows))
             continue
 
         if not _is_leaf_text_block(tag):
