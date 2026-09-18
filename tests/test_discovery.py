@@ -132,3 +132,28 @@ def test_discover_documents_returns_empty_when_every_source_finds_nothing(monkey
     monkeypatch.setattr(registry_module, "_SOURCES", [_StubEmpty()])
 
     assert discover_documents("Unknown Company") == []
+
+
+def test_a_brand_new_source_slots_in_without_touching_the_registry():
+    """Proves the DocumentSource Protocol is the only thing a new source
+    needs to satisfy: a plain class with a source_type and a
+    search_documents method, registered by adding it to a list — nothing
+    in discover_documents() itself has to change for a new country's
+    exchange, a company-IR crawler, or (later) a real NGX source."""
+
+    class ANewExchangeSource:
+        source_type = "some-new-exchange"
+
+        def search_documents(self, company_name, cik=None):
+            return [
+                DiscoveredDocument(
+                    title=f"{company_name} annual report",
+                    source_url="https://example-exchange.test/report.pdf",
+                    source_type=self.source_type,
+                )
+            ]
+
+    sources: list = [ANewExchangeSource()]
+    results = [d for source in sources for d in source.search_documents("Example Co")]
+
+    assert results[0].source_type == "some-new-exchange"
