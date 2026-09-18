@@ -3,6 +3,10 @@ import logging
 import time
 from pathlib import Path
 
+from sqlmodel import func, select
+
+from financial_rag_agent.core import Filing, get_session
+from financial_rag_agent.core.config import get_settings
 from financial_rag_agent.eval.dataset import EVAL_QUERIES
 from financial_rag_agent.eval.judge import judge_relevance
 from financial_rag_agent.eval.metrics import evaluate_retrieval
@@ -35,12 +39,16 @@ def _save_progress(qrels: dict, runs: dict, queries_done: int) -> None:
 
 
 def run_eval() -> dict[str, dict[str, float]]:
-    """Runs every config against every eval query, judges relevance with the
-    small local LLM, and computes real Precision@K/Recall@K/MRR/NDCG via
-    ranx. Every config is scored against the same qrels per query (the union
-    of judged-relevant chunks across all three configs' pools) — an honest
-    proxy for recall, since there is no exhaustive corpus-wide relevance
-    labeling to compute it against."""
+    """Runs every config against every eval query, judges relevance with
+    whichever LLM provider is configured, and computes real Precision@K/
+    Recall@K/MRR/NDCG via ranx. Every config is scored against the same
+    qrels per query (the union of judged-relevant chunks across all three
+    configs' pools) — an honest proxy for recall, since there is no
+    exhaustive corpus-wide relevance labeling to compute it against.
+
+    Searches are unscoped (no filing_id), so with several companies in the
+    KB the eval also exercises cross-company discrimination — the NVIDIA-
+    worded queries have to find NVIDIA's chunks among everyone else's."""
     qrels: dict[str, dict[str, dict[str, int]]] = {name: {} for name in CONFIGS}
     runs: dict[str, dict[str, dict[str, float]]] = {name: {} for name in CONFIGS}
 
@@ -98,12 +106,30 @@ def run_eval() -> dict[str, dict[str, float]]:
     return {name: evaluate_retrieval(qrels[name], runs[name], FINAL_K) for name in CONFIGS}
 
 
+def _corpus_description() -> str:
+    with get_session() as session:
+        complete = session.exec(
+            select(func.count()).select_from(Filing).where(Filing.ingestion_status == "complete")
+        ).one()
+    return f"{complete} fully-ingested filing(s) in the KB, searched unscoped"
+
+
 def summarize(results: dict[str, dict[str, float]]) -> str:
+    # The header records the real conditions the numbers were measured
+    # under — embedding model, judge, corpus size — so a later run under
+    # different conditions can't be mistaken for a like-for-like comparison.
+    settings = get_settings()
     lines = [
         "# Retrieval evaluation report",
         "",
-        f"Queries: {len(EVAL_QUERIES)} | K={FINAL_K} | candidate pool={POOL_SIZE} | "
-        "judge=Ollama local LLM (see llm/factory.py) | metrics computed via ranx",
+        f"Queries: {len(EVAL_QUERIES)} | K={FINAL_K} | candidate pool={POOL_SIZE} | metrics via ranx",
+        "",
+        f"Embeddings: {settings.embedding_provider} / {settings.embedding_model} "
+        f"({settings.embedding_dimension}-dim)",
+        "",
+        f"Judge: {settings.llm_provider} / {settings.llm_model}",
+        "",
+        f"Corpus: {_corpus_description()}",
         "",
         "Recall is computed against the union of judged-relevant chunks across all "
         "three configs' pools for each query (no exhaustive corpus-wide ground truth exists).",

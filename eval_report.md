@@ -1,11 +1,17 @@
 # Retrieval evaluation report
 
-Queries: 10 | K=4 | candidate pool=5 | judge=Ollama local LLM (see llm/factory.py) | metrics computed via ranx
+Queries: 10 | K=4 | candidate pool=5 | metrics via ranx
+
+Embeddings: sentence-transformers / sentence-transformers/all-MiniLM-L6-v2 (384-dim)
+
+Judge: anthropic / claude-haiku-4-5-20251001
+
+Corpus: 3 fully-ingested filing(s) in the KB, searched unscoped
 
 Recall is computed against the union of judged-relevant chunks across all three configs' pools for each query (no exhaustive corpus-wide ground truth exists).
 
 | Config | Precision@K | Recall@K | MRR | NDCG@K |
 |---|---|---|---|---|
-| baseline_vector | 0.200 | 0.500 | 0.432 | 0.357 |
-| hybrid | 0.250 | 0.700 | 0.578 | 0.559 |
-| hybrid_reranked | 0.225 | 0.675 | 0.467 | 0.482 |
+| baseline_vector | 0.250 | 0.227 | 0.342 | 0.264 |
+| hybrid | 0.425 | 0.484 | 0.583 | 0.526 |
+| hybrid_reranked | 0.475 | 0.664 | 0.620 | 0.597 |

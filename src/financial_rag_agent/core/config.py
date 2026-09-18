@@ -27,9 +27,20 @@ class Settings(BaseSettings):
 
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
-    # "baseline" | "hybrid" | "hybrid_reranked" — default is "hybrid" per real
-    # eval results (eval_report.md): hybrid beat both baseline and
-    # hybrid+reranked on every metric, so reranking is opt-in, not default.
+    # "baseline" | "hybrid" | "hybrid_reranked". See eval_report.md for the
+    # current real measurements; they've changed with conditions:
+    #   - Under the original setup (Ollama nomic-embed-text, llama3.2 judge,
+    #     NVIDIA-only corpus), hybrid beat hybrid_reranked on every metric,
+    #     which is why hybrid became the default.
+    #   - Under the current setup (all-MiniLM-L6-v2, Claude judge, 3-company
+    #     corpus searched unscoped), hybrid_reranked wins on every metric:
+    #     NDCG 0.597 vs 0.526, Recall@4 0.664 vs 0.484, MRR 0.620 vs 0.583.
+    # The cost is latency: the cross-encoder adds ~4-5s per query on CPU
+    # (hybrid alone is ~0.1s). hybrid stays the default for the live /query
+    # path on that basis; switch to hybrid_reranked if answer quality
+    # matters more than sub-second responses. Re-measure if the embedding
+    # model or corpus changes materially — this decision is empirical, not
+    # fixed.
     retrieval_strategy: str = "hybrid"
 
     chunk_target_tokens: int = 900
