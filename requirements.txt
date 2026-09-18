@@ -12,6 +12,7 @@ colorama==0.4.6
 contourpy==1.4.0
 cramjam==2.12.1
 cycler==0.12.1
+ddgs==9.16.0
 distro==1.9.0
 fastapi==0.141.1
 fastparquet==2026.5.0
@@ -61,6 +62,7 @@ pandas==3.0.5
 pgvector==0.3.6
 pillow==12.3.0
 pluggy==1.6.0
+primp==2.0.1
 psycopg==3.3.5
 psycopg-binary==3.3.5
 psycopg-pool==3.3.1
