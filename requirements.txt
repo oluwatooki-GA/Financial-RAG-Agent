@@ -1,5 +1,6 @@
 annotated-doc==0.0.5
 annotated-types==0.8.0
+anthropic==1.7.0
 anyio==4.15.1
 asyncpg==0.31.0
 beautifulsoup4==4.15.0
@@ -16,6 +17,7 @@ cryptography==50.0.1
 cycler==0.12.1
 ddgs==9.16.0
 distro==1.9.0
+docstring_parser==0.18.0
 fastapi==0.141.1
 fastparquet==2026.5.0
 filelock==3.32.6
@@ -34,10 +36,12 @@ idna==3.19
 iniconfig==2.3.0
 ir_datasets==0.6.3
 Jinja2==3.1.6
+jiter==0.17.0
 joblib==1.6.0
 jsonpatch==1.33
 jsonpointer==3.1.1
 kiwisolver==1.5.1
+langchain-anthropic==1.7.2
 langchain-core==1.6.3
 langchain-huggingface==1.2.2
 langchain-ollama==1.1.0

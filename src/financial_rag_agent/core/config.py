@@ -10,13 +10,20 @@ class Settings(BaseSettings):
 
     sec_user_agent: str
 
-    embedding_provider: str = "ollama"
-    embedding_model: str = "nomic-embed-text"
-    embedding_dimension: int = 768
+    # sentence-transformers runs in-process (no separate server to crash
+    # under load — verified live: embedding 719 chunks in one Ollama batch
+    # crashed its server process mid-request), so it's the default here.
+    embedding_provider: str = "sentence-transformers"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_dimension: int = 384
     ollama_base_url: str = "http://localhost:11434"
 
     llm_provider: str = "ollama"
     llm_model: str = "llama3.2:3b"
+    # Only required when llm_provider="anthropic". Billed separately via
+    # console.anthropic.com — not covered by a Claude.ai/Claude Code
+    # subscription. Never logged or committed; lives in .env only.
+    anthropic_api_key: str | None = None
 
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
