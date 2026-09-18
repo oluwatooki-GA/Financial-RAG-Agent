@@ -219,6 +219,7 @@ __marimo__/
 
 # Project: cached raw filing downloads
 data/raw/
+data/raw_discovered/
 
 # Project: eval run scratch/resilience files (not deliverables)
 eval_progress.json

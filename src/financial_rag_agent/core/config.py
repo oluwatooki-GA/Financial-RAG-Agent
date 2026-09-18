@@ -30,6 +30,12 @@ class Settings(BaseSettings):
 
     web_search_max_results: int = 5
 
+    # Runtime document discovery/download (Phase 4). Explicit and
+    # configurable per PROJECT_BUILD_PROMPT.md's engineering principles —
+    # not magic numbers buried in downloader.py.
+    download_timeout_seconds: int = 30
+    max_document_size_bytes: int = 25 * 1024 * 1024  # 25 MB
+
 
 @lru_cache
 def get_settings() -> Settings:
