@@ -5,8 +5,8 @@ from sqlmodel import select
 from financial_rag_agent.core import Chunk, Company, Filing, get_session
 from financial_rag_agent.ingestion.chunker import SECFilingChunker
 from financial_rag_agent.ingestion.edgar_client import FilingRef, fetch_filing_html, get_latest_10k
+from financial_rag_agent.ingestion.indexing import persist_and_embed
 from financial_rag_agent.ingestion.parser import parse_filing_html
-from financial_rag_agent.retrieval.vector_store import get_vector_store, vector_row_id
 
 
 def _get_or_create_company(session, filing_ref: FilingRef) -> Company:
@@ -62,69 +62,12 @@ def ingest_filing(cik: str) -> Filing:
         company = _get_or_create_company(session, filing_ref)
         filing = _get_or_create_filing(session, company, filing_ref, str(raw_path))
 
-        chunks: list[Chunk] = session.exec(
-            select(Chunk).where(Chunk.filing_id == filing.id).order_by(Chunk.chunk_index)
-        ).all()
-
-        if not chunks:
-            filing.ingestion_status = "parsing"
-            session.add(filing)
-            session.commit()
-
+        drafts = []
+        already_chunked = session.exec(select(Chunk.id).where(Chunk.filing_id == filing.id).limit(1)).first()
+        if not already_chunked:
             blocks = parse_filing_html(raw_path)
             drafts = SECFilingChunker().chunk(blocks)
 
-            for draft in drafts:
-                chunk = Chunk(
-                    filing_id=filing.id,
-                    chunk_index=draft.chunk_index,
-                    part_label=draft.part_label,
-                    item_label=draft.item_label,
-                    item_heading=draft.item_heading,
-                    section_path=draft.section_path,
-                    text=draft.text,
-                    modality=draft.modality,
-                    table_data=draft.table_data,
-                    token_count=len(draft.text) // 4,
-                )
-                chunk.embedding_id = str(chunk.id)
-                chunks.append(chunk)
-
-            session.add_all(chunks)
-            session.commit()
-            for c in chunks:
-                session.refresh(c)
-
-        # Always (re-)embed into whichever collection EMBEDDING_PROVIDER currently
-        # points at. Each provider/model gets its own pgvector collection, so this
-        # is a safe, idempotent upsert even if the filing was already ingested
-        # under a different provider.
-        filing.ingestion_status = "embedding"
-        session.add(filing)
-        session.commit()
-
-        vector_store = get_vector_store()
-        vector_store.add_texts(
-            texts=[c.text for c in chunks],
-            metadatas=[
-                {
-                    "chunk_id": str(c.id),
-                    "filing_id": str(filing.id),
-                    "company_id": str(company.id),
-                    "item_label": c.item_label,
-                    "item_heading": c.item_heading,
-                    "modality": c.modality,
-                }
-                for c in chunks
-            ],
-            ids=[vector_row_id(vector_store.collection_name, c.id) for c in chunks],
-        )
-
-        filing.ingestion_status = "complete"
-        filing.chunk_count = len(chunks)
-        filing.ingested_at = datetime.utcnow()
-        session.add(filing)
-        session.commit()
-        session.refresh(filing)
+        persist_and_embed(session, filing, company.id, drafts)
 
         return filing
