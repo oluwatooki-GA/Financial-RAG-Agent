@@ -37,6 +37,8 @@ def _get_or_create_filing(session, company: Company, filing_ref: FilingRef, loca
         company_id=company.id,
         accession_number=filing_ref.accession_number,
         form_type=filing_ref.form_type,
+        document_type=filing_ref.form_type,
+        source_type="sec",
         filing_date=date.fromisoformat(filing_ref.filing_date),
         period_of_report=date.fromisoformat(filing_ref.period_of_report)
         if filing_ref.period_of_report
@@ -44,6 +46,7 @@ def _get_or_create_filing(session, company: Company, filing_ref: FilingRef, loca
         primary_document_filename=filing_ref.primary_document,
         source_url=filing_ref.source_url,
         local_raw_path=local_path,
+        downloaded_at=datetime.utcnow(),
     )
     session.add(filing)
     session.commit()
