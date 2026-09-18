@@ -30,3 +30,14 @@ def cagr(begin_value: float, end_value: float, periods: float) -> float:
     if periods <= 0:
         raise ValueError("CAGR requires a positive number of periods")
     return (end_value / begin_value) ** (1 / periods) - 1
+
+
+# operation name -> (function, required field names, in call order).
+# Adding a calculation means adding one entry here (plus the Literal in
+# tools/schemas.py) — the router dispatches off this, no if/elif chain.
+OPERATIONS: dict[str, tuple[object, tuple[str, ...]]] = {
+    "growth_rate": (growth_rate, ("current", "previous")),
+    "margin": (margin, ("numerator", "denominator")),
+    "yoy_change": (yoy_change, ("current", "previous")),
+    "cagr": (cagr, ("begin_value", "end_value", "periods")),
+}

@@ -14,31 +14,20 @@ from financial_rag_agent.tools.xbrl import get_company_concept
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
-_REQUIRED_FIELDS = {
-    "growth_rate": ("current", "previous"),
-    "margin": ("numerator", "denominator"),
-    "yoy_change": ("current", "previous"),
-    "cagr": ("begin_value", "end_value", "periods"),
-}
-
 
 @router.post("/calculate", response_model=CalculateResponse)
 def calculate(request: CalculateRequest) -> CalculateResponse:
-    missing = [f for f in _REQUIRED_FIELDS[request.operation] if getattr(request, f) is None]
+    func, required_fields = calculator.OPERATIONS[request.operation]
+
+    missing = [f for f in required_fields if getattr(request, f) is None]
     if missing:
         raise HTTPException(
             status_code=400,
             detail=f"Operation {request.operation!r} requires: {', '.join(missing)}",
         )
 
-    if request.operation == "growth_rate":
-        result = calculator.growth_rate(request.current, request.previous)
-    elif request.operation == "margin":
-        result = calculator.margin(request.numerator, request.denominator)
-    elif request.operation == "yoy_change":
-        result = calculator.yoy_change(request.current, request.previous)
-    else:
-        result = calculator.cagr(request.begin_value, request.end_value, request.periods)
+    values = [getattr(request, f) for f in required_fields]
+    result = func(*values)
 
     return CalculateResponse(operation=request.operation, result=result)
 
