@@ -12,7 +12,9 @@ def _fake_settings(strategy: str):
 def test_hybrid_is_the_default_strategy_dispatch(monkeypatch):
     calls = []
     monkeypatch.setattr(service, "get_settings", lambda: _fake_settings("hybrid"))
-    monkeypatch.setattr(service, "hybrid_search", lambda query, k, modality: calls.append("hybrid"))
+    monkeypatch.setattr(
+        service, "hybrid_search", lambda query, k, filing_id, modality: calls.append("hybrid")
+    )
 
     service.search("some query", k=3)
 
@@ -23,7 +25,9 @@ def test_baseline_strategy_dispatch(monkeypatch):
     calls = []
     monkeypatch.setattr(service, "get_settings", lambda: _fake_settings("baseline"))
     monkeypatch.setattr(
-        service, "baseline_vector_search", lambda query, k, modality: calls.append("baseline")
+        service,
+        "baseline_vector_search",
+        lambda query, k, filing_id, modality: calls.append("baseline"),
     )
 
     service.search("some query", k=3)
@@ -35,7 +39,9 @@ def test_hybrid_reranked_strategy_dispatch(monkeypatch):
     calls = []
     monkeypatch.setattr(service, "get_settings", lambda: _fake_settings("hybrid_reranked"))
     monkeypatch.setattr(
-        service, "hybrid_search_reranked", lambda query, k, modality: calls.append("hybrid_reranked")
+        service,
+        "hybrid_search_reranked",
+        lambda query, k, filing_id, modality: calls.append("hybrid_reranked"),
     )
 
     service.search("some query", k=3)

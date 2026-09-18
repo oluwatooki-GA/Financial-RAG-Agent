@@ -1,4 +1,5 @@
 from typing import Callable
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
@@ -21,10 +22,11 @@ def get_query_service() -> Callable[..., list[RetrievedChunk]]:
 def query(
     q: str = Query(..., min_length=1),
     k: int = Query(default=5, ge=1, le=20),
+    filing_id: UUID | None = Query(default=None),
     modality: str | None = Query(default=None, pattern="^(text|table)$"),
     query_service=Depends(get_query_service),
 ) -> QueryResponse:
-    results = query_service(q, k=k, modality=modality)
+    results = query_service(q, k=k, filing_id=filing_id, modality=modality)
     return QueryResponse(
         query=q,
         results=[

@@ -58,7 +58,7 @@ def test_query_uses_injected_service_not_real_retrieval(client):
         citation_sentences=[],
     )
     app.dependency_overrides[get_query_service] = lambda: (
-        lambda q, k, modality=None: [fake_chunk]
+        lambda q, k, filing_id=None, modality=None: [fake_chunk]
     )
 
     resp = client.get("/api/v1/query", params={"q": "anything", "k": 1})
@@ -70,7 +70,7 @@ def test_query_uses_injected_service_not_real_retrieval(client):
 
 
 def test_runtime_error_maps_to_500_with_detail(client):
-    def fake_query(q, k, modality=None):
+    def fake_query(q, k, filing_id=None, modality=None):
         raise RuntimeError("configured embedding_dimension=768 but model returned a 384-dim vector")
 
     app.dependency_overrides[get_query_service] = lambda: fake_query
