@@ -20,9 +20,11 @@ JUDGE_PASSAGE_CHARS = 1200  # tradeoff: shorter = faster CPU inference, longer =
 @lru_cache(maxsize=4096)
 def judge_relevance(query: str, chunk_text: str) -> bool:
     """LLM-as-judge binary relevance label for one (query, chunk) pair, via
-    the small local Ollama model. Cached per (query, chunk_text) so the same
+    whichever provider LLM_PROVIDER points at (Claude via the Anthropic API,
+    or a local Ollama model). Cached per (query, chunk_text) so the same
     chunk surfacing across multiple retrieval configurations in one eval run
-    is only judged once."""
+    is only judged once — which also bounds API spend when the judge is a
+    paid model."""
     llm = get_llm_client()
     prompt = _JUDGE_PROMPT.format(query=query, passage=chunk_text[:JUDGE_PASSAGE_CHARS])
     response = llm.invoke(prompt)
