@@ -1,3 +1,4 @@
+import ddgs.exceptions
 import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -20,6 +21,14 @@ def handle_upstream_error(request: Request, exc: requests.RequestException) -> J
     # EDGAR (or any future upstream HTTP dependency) being unreachable or
     # erroring is not this service's fault — 502, not a raw 500 traceback.
     return JSONResponse(status_code=502, content={"detail": f"Upstream request failed: {exc}"})
+
+
+@app.exception_handler(ddgs.exceptions.DDGSException)
+def handle_web_search_error(request: Request, exc: ddgs.exceptions.DDGSException) -> JSONResponse:
+    # Confirmed real, live: the free duckduckgo/bing backends both failed
+    # transiently in the same request (rate limiting, a backend timing out).
+    # That's inherent flakiness in a free search service, not our bug.
+    return JSONResponse(status_code=502, content={"detail": f"Web search failed: {exc}"})
 
 
 @app.exception_handler(RuntimeError)
