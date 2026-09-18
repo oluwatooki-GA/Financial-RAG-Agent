@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     chunk_target_tokens: int = 900
     chunk_overlap_tokens: int = 150
 
+    web_search_max_results: int = 5
+
 
 @lru_cache
 def get_settings() -> Settings:
