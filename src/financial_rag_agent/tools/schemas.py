@@ -45,3 +45,20 @@ class WebSearchResultResponse(BaseModel):
 class WebSearchResponse(BaseModel):
     query: str
     results: list[WebSearchResultResponse]
+
+
+class NGXCorporateActionResponse(BaseModel):
+    company: str
+    company_symbol: str
+    year: int
+    dividend_share: str
+    bonus: str
+    closure_of_register: str
+    agm_date: str
+    payment_date: str
+
+
+class NGXCorporateActionsResponse(BaseModel):
+    year: int
+    company_symbol: str | None
+    actions: list[NGXCorporateActionResponse]

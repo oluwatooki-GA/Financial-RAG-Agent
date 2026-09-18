@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from financial_rag_agent.tools import calculator
+from financial_rag_agent.tools.ngx_corporate_actions import get_corporate_actions
 from financial_rag_agent.tools.schemas import (
     CalculateRequest,
     CalculateResponse,
+    NGXCorporateActionResponse,
+    NGXCorporateActionsResponse,
     WebSearchResponse,
     WebSearchResultResponse,
     XBRLFactResponse,
@@ -67,4 +70,29 @@ def web_search(
     return WebSearchResponse(
         query=q,
         results=[WebSearchResultResponse(title=r.title, url=r.url, snippet=r.snippet) for r in results],
+    )
+
+
+@router.get("/ngx-corporate-actions", response_model=NGXCorporateActionsResponse)
+def ngx_corporate_actions(
+    year: int = Query(..., ge=1960),
+    company_symbol: str | None = Query(default=None),
+) -> NGXCorporateActionsResponse:
+    actions = get_corporate_actions(year, company_symbol=company_symbol)
+    return NGXCorporateActionsResponse(
+        year=year,
+        company_symbol=company_symbol,
+        actions=[
+            NGXCorporateActionResponse(
+                company=a.company,
+                company_symbol=a.company_symbol,
+                year=a.year,
+                dividend_share=a.dividend_share,
+                bonus=a.bonus,
+                closure_of_register=a.closure_of_register,
+                agm_date=a.agm_date,
+                payment_date=a.payment_date,
+            )
+            for a in actions
+        ],
     )
