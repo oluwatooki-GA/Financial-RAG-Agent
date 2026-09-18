@@ -91,6 +91,58 @@ def test_table_never_merges_with_surrounding_prose():
     assert all("193737" not in c.text for c in text_chunks)
 
 
+def test_table_gets_nearest_preceding_paragraph_as_title():
+    table_rows = [["Segment", "Revenue"], ["Data Center", "193737"]]
+    blocks = [
+        Block(type="heading", text="Item 7. Management's Discussion"),
+        Block(type="paragraph", text="Revenue by Reportable Segments"),
+        _table(table_rows),
+    ]
+
+    chunker = SECFilingChunker(target_tokens=900, overlap_tokens=150)
+    chunks = chunker.chunk(blocks)
+
+    table_chunks = [c for c in chunks if c.modality == "table"]
+    assert table_chunks[0].text.startswith("Revenue by Reportable Segments")
+
+
+def test_back_to_back_table_inherits_previous_table_title():
+    # Second table has no prose before it at all — should inherit the first
+    # table's title rather than being left with no context.
+    blocks = [
+        Block(type="heading", text="Item 15. Exhibits"),
+        Block(type="paragraph", text="Exhibit Index"),
+        _table([["Exhibit No.", "Description"], ["3.1", "Certificate of Incorporation"]]),
+        _table([["10.10", "Employment Agreement"], ["10.11", "Offer Letter"]]),
+    ]
+
+    chunker = SECFilingChunker(target_tokens=900, overlap_tokens=150)
+    chunks = chunker.chunk(blocks)
+
+    table_chunks = [c for c in chunks if c.modality == "table"]
+    assert len(table_chunks) == 2
+    assert table_chunks[0].text.startswith("Exhibit Index")
+    assert table_chunks[1].text.startswith("Exhibit Index")
+
+
+def test_table_title_does_not_leak_across_a_new_heading():
+    blocks = [
+        Block(type="heading", text="Item 7. Management's Discussion"),
+        Block(type="paragraph", text="Revenue by Reportable Segments"),
+        _table([["Segment", "Revenue"], ["Data Center", "193737"]]),
+        Block(type="heading", text="Item 8. Financial Statements"),
+        _table([["Line Item", "Amount"], ["Net income", "100000"]]),
+    ]
+
+    chunker = SECFilingChunker(target_tokens=900, overlap_tokens=150)
+    chunks = chunker.chunk(blocks)
+
+    table_chunks = [c for c in chunks if c.modality == "table"]
+    assert len(table_chunks) == 2
+    assert table_chunks[0].text.startswith("Revenue by Reportable Segments")
+    assert not table_chunks[1].text.startswith("Revenue by Reportable Segments")
+
+
 def test_large_table_splits_by_row_group_not_mid_row():
     # Each row is long enough that a small target_tokens forces a split.
     rows = [[f"Line item {i}", "A" * 40, "B" * 40] for i in range(10)]
