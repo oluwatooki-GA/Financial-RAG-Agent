@@ -36,6 +36,17 @@ class Settings(BaseSettings):
     download_timeout_seconds: int = 30
     max_document_size_bytes: int = 25 * 1024 * 1024  # 25 MB
 
+    # Retrieval-sufficiency gate (Phase 4): minimum best citation-sentence
+    # cosine similarity (retrieval/citations.py) for KB evidence to count
+    # as "good enough" before falling back to runtime discovery. Measured
+    # live, not guessed: an on-topic query against the right company's
+    # filing scored 0.834; an off-topic query against that same filing
+    # scored 0.455. 0.6 sits between them. This is a first-pass default,
+    # not a tuned/validated one — see retrieval/sufficiency.py for why
+    # this signal alone can't catch a wrong-company match (that's the
+    # company/filing metadata check, not this threshold).
+    retrieval_sufficiency_min_score: float = 0.6
+
 
 @lru_cache
 def get_settings() -> Settings:
