@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from financial_rag_agent.core import Chunk, Filing
+from financial_rag_agent.core.config import get_settings
 from financial_rag_agent.ingestion.chunker import ChunkDraft
 from financial_rag_agent.retrieval.vector_store import get_vector_store, vector_row_id
 
@@ -57,21 +58,24 @@ def persist_and_embed(session: Session, filing: Filing, company_id: UUID, drafts
     session.commit()
 
     vector_store = get_vector_store()
-    vector_store.add_texts(
-        texts=[c.text for c in chunks],
-        metadatas=[
-            {
-                "chunk_id": str(c.id),
-                "filing_id": str(filing.id),
-                "company_id": str(company_id),
-                "item_label": c.item_label,
-                "item_heading": c.item_heading,
-                "modality": c.modality,
-            }
-            for c in chunks
-        ],
-        ids=[vector_row_id(vector_store.collection_name, c.id) for c in chunks],
-    )
+    batch_size = get_settings().embedding_batch_size
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start : start + batch_size]
+        vector_store.add_texts(
+            texts=[c.text for c in batch],
+            metadatas=[
+                {
+                    "chunk_id": str(c.id),
+                    "filing_id": str(filing.id),
+                    "company_id": str(company_id),
+                    "item_label": c.item_label,
+                    "item_heading": c.item_heading,
+                    "modality": c.modality,
+                }
+                for c in batch
+            ],
+            ids=[vector_row_id(vector_store.collection_name, c.id) for c in batch],
+        )
 
     filing.ingestion_status = "complete"
     filing.chunk_count = len(chunks)

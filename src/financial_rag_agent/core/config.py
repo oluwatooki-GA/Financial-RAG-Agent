@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     chunk_target_tokens: int = 900
     chunk_overlap_tokens: int = 150
 
+    # Embedding a large document's chunks in one single add_texts() call
+    # can overwhelm a local Ollama server - verified live: a real 719-chunk
+    # PDF crashed Ollama's internal tokenizer subprocess mid-request ("dial
+    # tcp ...: connectex: actively refused") when embedded as one batch,
+    # while NVIDIA's 256-chunk and Apple's 187-chunk filings never hit this.
+    # Batching keeps each request small enough to be reliable.
+    embedding_batch_size: int = 64
+
     web_search_max_results: int = 5
 
     # Runtime document discovery/download (Phase 4). Explicit and
