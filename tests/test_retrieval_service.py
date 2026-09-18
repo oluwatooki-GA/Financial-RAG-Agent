@@ -9,7 +9,7 @@ def _fake_settings(strategy: str):
     return SimpleNamespace(retrieval_strategy=strategy)
 
 
-def test_hybrid_is_the_default_strategy_dispatch(monkeypatch):
+def test_hybrid_strategy_dispatch(monkeypatch):
     calls = []
     monkeypatch.setattr(service, "get_settings", lambda: _fake_settings("hybrid"))
     monkeypatch.setattr(

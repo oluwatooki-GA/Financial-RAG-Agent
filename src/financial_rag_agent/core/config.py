@@ -36,12 +36,12 @@ class Settings(BaseSettings):
     #     corpus searched unscoped), hybrid_reranked wins on every metric:
     #     NDCG 0.597 vs 0.526, Recall@4 0.664 vs 0.484, MRR 0.620 vs 0.583.
     # The cost is latency: the cross-encoder adds ~4-5s per query on CPU
-    # (hybrid alone is ~0.1s). hybrid stays the default for the live /query
-    # path on that basis; switch to hybrid_reranked if answer quality
-    # matters more than sub-second responses. Re-measure if the embedding
-    # model or corpus changes materially — this decision is empirical, not
-    # fixed.
-    retrieval_strategy: str = "hybrid"
+    # (hybrid alone is ~0.1s). hybrid_reranked is the default on the basis
+    # that a filing-research assistant should favor answer quality over
+    # sub-second responses; set RETRIEVAL_STRATEGY=hybrid for the faster
+    # path. Re-measure if the embedding model or corpus changes materially —
+    # this decision is empirical, not fixed, and has already flipped once.
+    retrieval_strategy: str = "hybrid_reranked"
 
     chunk_target_tokens: int = 900
     chunk_overlap_tokens: int = 150
