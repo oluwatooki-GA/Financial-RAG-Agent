@@ -53,14 +53,22 @@ class Settings(BaseSettings):
 
     # Retrieval-sufficiency gate (Phase 4): minimum best citation-sentence
     # cosine similarity (retrieval/citations.py) for KB evidence to count
-    # as "good enough" before falling back to runtime discovery. Measured
-    # live, not guessed: an on-topic query against the right company's
-    # filing scored 0.834; an off-topic query against that same filing
-    # scored 0.455. 0.6 sits between them. This is a first-pass default,
-    # not a tuned/validated one — see retrieval/sufficiency.py for why
-    # this signal alone can't catch a wrong-company match (that's the
-    # company/filing metadata check, not this threshold).
-    retrieval_sufficiency_min_score: float = 0.6
+    # as "good enough" before falling back to runtime discovery.
+    #
+    # This threshold is TIED TO THE EMBEDDING MODEL — the score scale
+    # shifts between models, so it was re-measured when the default
+    # embedding provider changed. Measured live, not guessed:
+    #   all-MiniLM-L6-v2 (current default): on-topic 0.841 (NVIDIA) and
+    #     0.531 (GTCO, noisier PDF-extracted text); off-topic 0.235/0.228.
+    #   Ollama nomic-embed-text (previous):  on-topic 0.834/0.731;
+    #     off-topic 0.455.
+    # 0.4 sits between the current model's max off-topic (0.235) and min
+    # on-topic (0.531). Keeping the old 0.6 threshold under the current
+    # model would wrongly reject GTCO's on-topic query at 0.531 —
+    # re-measure this if the embedding model changes again. See retrieval/
+    # sufficiency.py for why this signal alone can't catch a wrong-company
+    # match (that's the company/filing metadata check, not this number).
+    retrieval_sufficiency_min_score: float = 0.4
 
 
 @lru_cache

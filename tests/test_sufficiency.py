@@ -109,11 +109,13 @@ def test_check_sufficiency_sufficient_when_score_above_threshold(monkeypatch):
 
 
 def test_check_sufficiency_insufficient_when_score_below_threshold(monkeypatch):
+    # 0.23 is the real measured off-topic score under the current embedding
+    # model (all-MiniLM-L6-v2) — see core/config.py.
     monkeypatch.setattr(sufficiency_module, "_resolve_filing_id", lambda name, cik: (None, None))
-    monkeypatch.setattr(sufficiency_module, "search", lambda query, k, filing_id: [_chunk(score=0.45)])
+    monkeypatch.setattr(sufficiency_module, "search", lambda query, k, filing_id: [_chunk(score=0.23)])
 
     result = check_retrieval_sufficiency("some off-topic query")
 
     assert result.sufficient is False
-    assert result.best_score == 0.45
+    assert result.best_score == 0.23
     assert "is below threshold" in result.reason

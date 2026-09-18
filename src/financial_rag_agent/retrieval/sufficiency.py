@@ -62,21 +62,25 @@ def check_retrieval_sufficiency(
 
     Company/filing existence is checked FIRST, before any score, and is
     the real defense against a wrong-company answer - not the score
-    threshold. Measured live: an off-topic query against the *right*
-    company's filing scored 0.455 (real cosine similarity between the
-    query and the best-matching sentence, via retrieval/citations.py).
-    A query about a company entirely absent from the KB, searched
-    unscoped, still scored 0.736 - shared financial vocabulary alone
-    drives embedding similarity up regardless of which company it's
-    actually about. A score threshold cannot reliably tell "right
-    company, off-topic" apart from "wrong company"; only checking that
-    the company actually has a fully-ingested filing can. That check
-    happens here, before search() is ever called with company context.
+    threshold. Measured live (under the original Ollama nomic-embed-text
+    model): an off-topic query against the *right* company's filing
+    scored 0.455 (real cosine similarity between the query and the
+    best-matching sentence, via retrieval/citations.py). A query about a
+    company entirely absent from the KB, searched unscoped, still scored
+    0.736 - shared financial vocabulary alone drives embedding similarity
+    up regardless of which company it's actually about. A score threshold
+    cannot reliably tell "right company, off-topic" apart from "wrong
+    company"; only checking that the company actually has a fully-
+    ingested filing can. That check happens here, before search() is
+    ever called with company context.
 
     Once scoped to the right company's filing, retrieval_sufficiency_
-    min_score (settings) is the topic-relevance signal, calibrated
-    against the same two real measurements (0.834 on-topic vs. 0.455
-    off-topic-same-company).
+    min_score (settings) is the topic-relevance signal. It is tied to
+    the embedding model - the score scale shifts between models - so it
+    was re-measured when the default provider changed to sentence-
+    transformers/all-MiniLM-L6-v2: on-topic 0.841 (NVIDIA) and 0.531
+    (GTCO), off-topic 0.235/0.228. See core/config.py for both sets of
+    reference measurements and the rationale for the current value.
 
     An unscoped check (no company given) still runs when the caller has
     no company context at all, but inherits the limitation above -
