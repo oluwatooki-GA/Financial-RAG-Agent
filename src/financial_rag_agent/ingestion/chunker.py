@@ -4,10 +4,12 @@ from dataclasses import dataclass
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from financial_rag_agent.core.config import get_settings
-from financial_rag_agent.ingestion.parser import Block
+from financial_rag_agent.ingestion.parser import Block, dedupe_adjacent
 
 PART_RE = re.compile(r"^PART\s+[IVX]+\b", re.IGNORECASE)
 ITEM_RE = re.compile(r"^(Item\s+\d+[A-Za-z]?)\.?\s*(.*)$", re.IGNORECASE)
+_NOISE_RE = re.compile(r"^\d{1,4}$")  # bare page numbers
+_TOC_RE = re.compile(r"^Table of Contents$", re.IGNORECASE)
 
 
 @dataclass
@@ -27,8 +29,23 @@ def _section_path(part_label: str | None, item_heading: str | None) -> str | Non
     return " > ".join(parts) if parts else None
 
 
-def _flatten_rows(rows: list[list[str]]) -> str:
-    return "\n".join(" | ".join(row) for row in rows)
+def _flatten_rows(rows: list[list[str]], title: str | None = None) -> str:
+    body = "\n".join(" | ".join(dedupe_adjacent(row)) for row in rows)
+    return f"{title}\n\n{body}" if title else body
+
+
+def _nearest_title(buffer: list[str]) -> str | None:
+    """Walks backward through the section's accumulated prose to find the
+    nearest real lead-in text for a table (e.g. "Revenue by Reportable
+    Segments"), skipping running-header noise like bare page numbers and
+    "Table of Contents" — SEC filings have no semantic heading tags, so a
+    table row embedded alone has zero context without this."""
+    for text in reversed(buffer):
+        stripped = text.strip()
+        if _NOISE_RE.match(stripped) or _TOC_RE.match(stripped):
+            continue
+        return text
+    return None
 
 
 def _group_table_rows(rows: list[list[str]], target_chars: int) -> list[list[list[str]]]:
@@ -79,6 +96,7 @@ class SECFilingChunker:
         current_part: str | None = None
         current_item_label: str | None = None
         current_item_heading: str | None = None
+        last_table_title: str | None = None
         buffer: list[str] = []
 
         def flush_buffer() -> None:
@@ -104,7 +122,13 @@ class SECFilingChunker:
             buffer.clear()
 
         def emit_table(block: Block) -> None:
-            nonlocal chunk_index
+            nonlocal chunk_index, last_table_title
+            # A table with no prose before it (back-to-back with another
+            # table, e.g. Item 15's exhibit sub-tables) has nothing in
+            # buffer to draw a title from — fall back to the previous
+            # table's title rather than leaving this one with no context.
+            title = _nearest_title(buffer) or last_table_title
+            last_table_title = title
             flush_buffer()
             for group in _group_table_rows(block.table_rows or [], self._target_chars):
                 drafts.append(
@@ -114,7 +138,7 @@ class SECFilingChunker:
                         item_label=current_item_label,
                         item_heading=current_item_heading,
                         section_path=_section_path(current_part, current_item_heading),
-                        text=_flatten_rows(group),
+                        text=_flatten_rows(group, title=title),
                         modality="table",
                         table_data=group,
                     )
@@ -128,6 +152,7 @@ class SECFilingChunker:
                     current_part = block.text
                     current_item_label = None
                     current_item_heading = None
+                    last_table_title = None
                     continue
 
                 item_match = ITEM_RE.match(block.text)
@@ -135,6 +160,7 @@ class SECFilingChunker:
                     flush_buffer()
                     current_item_label = item_match.group(1).strip()
                     current_item_heading = block.text
+                    last_table_title = None
                     continue
 
             if block.type == "table":
